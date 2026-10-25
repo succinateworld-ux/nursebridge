@@ -1,0 +1,44 @@
+{
+  "name": "nursebridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20.19.0" },
+  "scripts": {
+    "dev": "npm run build:server && concurrently -k \"npm:dev:compile\" \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:compile": "tsc -p tsconfig.server.json --watch",
+    "dev:server": "node --watch dist-server/index.js",
+    "dev:web": "vite --host 0.0.0.0",
+    "build:server": "tsc -p tsconfig.server.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json",
+    "build": "npm run typecheck && vite build",
+    "start": "node dist-server/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@x402/core": "2.28.0",
+    "@x402/evm": "2.28.0",
+    "@x402/express": "2.28.0",
+    "@x402/paywall": "2.28.0",
+    "dotenv": "16.6.1",
+    "express": "5.1.0",
+    "helmet": "8.1.0",
+    "lucide-react": "0.468.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "viem": "2.57.7"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.3",
+    "@types/node": "22.16.5",
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "6.1.2",
+    "concurrently": "9.2.1",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}
