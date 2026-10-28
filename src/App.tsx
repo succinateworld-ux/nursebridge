@@ -1,5 +1,6 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatUnits, type Address } from "viem";
+import { track, visit } from "./analytics";
 import {
   Activity, ArrowDownWideNarrow, ArrowRight, BadgeCheck, BookOpen, BookMarked, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Clock3, Coins, CreditCard, ExternalLink, FileQuestion, Filter, GraduationCap,
@@ -90,6 +91,13 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
   const [progress, setProgress] = useState<LearnerProgress>(() => loadProgress());
+  useEffect(() => {
+    const recordVisit = () => { if (document.visibilityState === "visible") visit(progress.selectedPathwayId); };
+    recordVisit();
+    const timer = window.setInterval(recordVisit, 60_000);
+    document.addEventListener("visibilitychange", recordVisit);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", recordVisit); };
+  }, [progress.selectedPathwayId]);
   const [lessonId, setLessonId] = useState<string>(lessons[0].id);
   const [selectedSubject, setSelectedSubject] = useState<SubjectId | "all">("all");
   const [searchText, setSearchText] = useState("");
@@ -338,6 +346,7 @@ export default function App() {
     const selectedOptionId = previousOption && set[0].options.some(option => option.id === previousOption) ? previousOption : "";
     setPractice({ ids: set.map(question => question.id), index: 0, selectedOptionId, submitted: Boolean(selectedOptionId), questionSet: set, pathwayId: progress.selectedPathwayId, mode });
     setPracticeWasSaved(false);
+    track("practice_started", progress.selectedPathwayId);
     go("practice");
   }
   function openLesson(lesson: Lesson) { setLessonId(lesson.id); go("lesson"); }
@@ -360,6 +369,7 @@ export default function App() {
   const selectedPathway = getPathway(progress.selectedPathwayId);
   const activeLesson = lessons.find(item => item.id === lessonId) ?? lessons[0];
   function choosePathway(pathwayId: PathwayId) {
+    track("pathway_selected", pathwayId);
     if (!go("home")) return;
     updateProgress(selectPathway(progress, pathwayId));
     showNotice((getPathway(pathwayId)?.name ?? "This pathway") + " is now selected. Your other pathway progress is preserved.", "success");
@@ -382,15 +392,18 @@ export default function App() {
     if (!mixed.length) { showNotice("No questions are available for a mock session yet.", "info"); return; }
     examSaved.current = "";
     const deadlineAt = Date.now() + examDuration * 60_000;
+    track("exam_started", progress.selectedPathwayId);
     setExam({ id: window.crypto.randomUUID(), status: "active", ids: mixed.map(item => item.id), index: 0, answers: {}, secondsLeft: examDuration * 60, durationMinutes: examDuration, deadlineAt, pathwayId: progress.selectedPathwayId });
   }
   const finishExam = useCallback((session: ExamSession) => {
     if (examSaved.current === session.id) return;
     examSaved.current = session.id;
+    track("exam_completed", session.pathwayId);
     const selected = new Map(questions.map(question => [question.id, question]));
     let next = progress;
     for (const id of session.ids) {
       const question = selected.get(id);
+      if (question && session.answers[id]) track("question_answered", session.pathwayId);
       if (question && session.answers[id]) next = addAttempt(next, { questionId: question.id, selectedOptionId: session.answers[id], subject: question.subject, topic: question.topic, correct: session.answers[id] === question.correctOptionId, answeredAt: new Date().toISOString(), ...(session.pathwayId ? { pathwayId: session.pathwayId } : {}) });
     }
     updateProgress(next);
@@ -407,17 +420,19 @@ export default function App() {
   function submitPracticeAnswer() {
     if (!practice || !currentPracticeQuestion || !practice.selectedOptionId || practice.submitted) return;
     recordQuestion(currentPracticeQuestion, practice.selectedOptionId, practice.pathwayId);
+    track("question_answered", practice.pathwayId);
     setPractice({ ...practice, submitted: true });
   }
   function nextPracticeQuestion() {
     if (!practice) return;
-    if (practice.index >= practice.questionSet.length - 1) { setPractice(null); setPracticeWasSaved(true); showNotice("You have completed this practice set. Your answers were saved on this device.", "success"); return; }
+    if (practice.index >= practice.questionSet.length - 1) { track("practice_completed", practice.pathwayId); setPractice(null); setPracticeWasSaved(true); showNotice("You have completed this practice set. Your answers were saved on this device.", "success"); return; }
     const nextQuestion = practice.questionSet[practice.index + 1];
     const previousOption = practice.mode === "review-mistakes" ? previousIncorrectOption(progress.attempts, nextQuestion.id, practice.pathwayId) : null;
     const selectedOptionId = previousOption && nextQuestion.options.some(option => option.id === previousOption) ? previousOption : "";
     setPractice({ ...practice, index: practice.index + 1, selectedOptionId, submitted: Boolean(selectedOptionId) });
   }
   function markLessonDone(lesson: Lesson) {
+    if (!completedLessonsFor(progress, progress.selectedPathwayId).includes(lesson.id)) track("lesson_completed", progress.selectedPathwayId);
     updateProgress(completeLesson(progress, lesson.id, progress.selectedPathwayId));
     showNotice("Lesson marked complete on this device.", "success");
   }
@@ -872,3 +887,4 @@ function NotFoundPage({ go }: { go: (view: View) => void }) { return <EmptyState
 function EmptyState({ title, body, action, compact = false }: { title: string; body: string; action?: React.ReactNode; compact?: boolean }) {
   return <div className={`empty-state ${compact ? "empty-state-compact" : ""}`}><span className="empty-state-icon"><BookOpen size={18} /></span><strong>{title}</strong><p>{body}</p>{action}</div>;
 }
+
