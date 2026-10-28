@@ -48,3 +48,7 @@ html,body{background:var(--canvas);color:var(--text)}
 /* Keep every stroke of the bridge mark visibly inside its rounded logo tile. */
 .topbar .brand-symbol{overflow:hidden;isolation:isolate}
 .topbar .brand-symbol svg{display:block;width:22px;height:20px;max-width:100%;max-height:100%;overflow:hidden}
+
+/* Reset the legacy grid so the bridge SVG can use the full icon tile. */
+.topbar .brand-symbol{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);place-items:center;gap:0}
+.topbar .brand-symbol svg{overflow:visible}
