@@ -8,6 +8,7 @@ import "./styles.css";
 import "./product.css";
 import "./experience.css";
 import "./glacier.css";
+import "./navigation.css";
 
 function Root() {
   const [admin, setAdmin] = useState(window.location.hash === "#admin");

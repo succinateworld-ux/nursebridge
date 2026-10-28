@@ -51,6 +51,7 @@ const navItems: { id: View; label: string; icon: React.ReactNode; group: "study"
   { id: "sponsor", label: "Sponsor students", icon: <Coins size={17} />, group: "support" },
   { id: "premium", label: "Premium access", icon: <LockKeyhole size={17} />, group: "support" }
 ];
+const headerNavLabels: Partial<Record<View, string>> = { home: "Home", pathways: "Pathways", learn: "Library", practice: "Practice", progress: "Progress" };
 const subjectMap = new Map(subjects.map(subject => [subject.id, subject]));
 const pathwayTileLabels: Record<PathwayId, string> = { "nmcn-rn": "NMCN · RN", "nmcn-rm": "NMCN · RM", "nmcn-rphn": "NMCN · RPHN", "nclex-rn": "NCLEX-RN", "nclex-pn": "NCLEX-PN" };
 const pathwayTileIcons: Record<PathwayId, React.ReactNode> = {
@@ -465,6 +466,7 @@ export default function App() {
         {navItems.filter(item => item.group === "support").map(item => <NavLink key={item.id} item={item} active={view === item.id} go={go} />)}
       </nav>
       <div className="sidebar-bottom">
+        <button className="sidebar-wallet" onClick={() => { setMobileNavOpen(false); if (account) go("premium"); else void connectWallet(); }} disabled={busy}><Wallet size={16} /><span><strong>{account ? walletLabel : "Connect wallet"}</strong><small>Optional Mezo Testnet access</small></span><ArrowUpRight size={14} /></button>
         <div className="network-mini"><span className="network-live-dot" /><span><strong>Mezo Testnet</strong><small>Optional MUSD checkout</small></span><span className="testnet-pill">TESTNET</span></div>
         <button className="sidebar-help" onClick={() => go("help")}><CircleHelp size={16} />Help & learning guidance<ChevronRight size={14} /></button>
         <button className="sidebar-profile" onClick={() => go("settings")}><span className="profile-avatar">N</span><span><strong>Guest learner</strong><small>Local-only progress</small></span><ChevronRight size={15} /></button>
@@ -474,47 +476,33 @@ export default function App() {
 
     <a className="nb-skip-link" href="#main-content" onClick={event=>{event.preventDefault();document.getElementById("main-content")?.focus();}}>Skip to content</a>
     <main id="main-content" tabIndex={-1} className="main-content" aria-label={titleFor[view]} inert={checkout || mobileNavOpen ? true : undefined}>
-      <header className="topbar">
+      <header className="topbar gl-navigation">
         <div className="topbar-brandline">
           <button ref={mobileMenuButtonRef} className="mobile-menu-button" onClick={() => setMobileNavOpen(value => !value)} aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileNavOpen} aria-controls="mobile-primary-nav"><Menu size={19} /></button>
-          <a href="#home" className="brand topbar-brand" onClick={event => { event.preventDefault(); go("home"); }} aria-label="NurseBridge home">
-            <span className="brand-symbol" aria-hidden="true"><svg viewBox="0 0 32 28"><path d="M3 21V15C3 8.37 8.82 3 16 3s13 5.37 13 12v6M2 21h28M8 20v-6m8 6V9m8 11v-6" /></svg></span>
-            <span className="brand-name">Nurse<span>Bridge</span><small>by Nurse Succinate</small></span>
-          </a>
+          <a href="#home" className="brand topbar-brand" onClick={event => { event.preventDefault(); go("home"); }} aria-label="NurseBridge home"><span className="brand-symbol" aria-hidden="true"><svg viewBox="0 0 32 28"><path d="M3 21V15C3 8.37 8.82 3 16 3s13 5.37 13 12v6M2 21h28M8 20v-6m8 6V9m8 11v-6" /></svg></span><span className="brand-name">Nurse<span>Bridge</span><small>BY NURSE SUCCINATE</small></span></a>
         </div>
         <nav className="desktop-nav" aria-label="Primary navigation">
-          {navItems.filter(item => item.group === "study" && item.id !== "exam" && item.id !== "study-plan").map(item => <NavLink key={item.id} item={item} active={view === item.id || item.id === "learn" && view === "lesson"} go={go} />)}
+          {navItems.filter(item => item.group === "study" && item.id !== "exam" && item.id !== "study-plan").map(item => <NavLink key={item.id} item={{ ...item, label: headerNavLabels[item.id] ?? item.label }} active={view === item.id || item.id === "learn" && view === "lesson"} go={go} />)}
         </nav>
         <div className="topbar-actions">
-          <span className="free-access-tag"><span className="nb-pulse-dot"/>Free to begin</span>
-          <details className={"topbar-access topbar-tools" + (["exam", "study-plan"].includes(view) ? " topbar-access-current" : "")} onKeyDown={event => {
-            if (event.key === "Escape") {
-              event.currentTarget.open = false;
-              event.currentTarget.querySelector("summary")?.focus();
-            }
-          }}>
-            <summary>Study tools <ChevronDown size={13} /></summary>
-            <div className="topbar-access-menu" aria-label="Study tools">
-              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("exam"); }}><Timer size={15} /><span><strong>Mock practice</strong><small>Start or resume a timed general set</small></span><ChevronRight size={14} /></button>
-              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("study-plan"); }}><Target size={15} /><span><strong>Study plan</strong><small>Set a private weekly question goal</small></span><ChevronRight size={14} /></button>
+          <details className={"topbar-access topbar-more" + (["exam", "study-plan", "premium", "sponsored", "sponsor", "help", "settings"].includes(view) ? " topbar-access-current" : "")} onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.open = false; event.currentTarget.querySelector("summary")?.focus(); } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) event.currentTarget.open = false; }}>
+            <summary aria-label="More study options"><svg className="nav-more-glyph" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="1.3"/><circle cx="12" cy="4" r="1.3"/><circle cx="4" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/></svg><span>More</span><ChevronDown size={12} /></summary>
+            <div className="topbar-access-menu header-more-menu" aria-label="More study options">
+              <span className="header-menu-label">STUDY TOOLS</span>
+              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("exam"); }}><Timer size={17} /><span><strong>Mock practice</strong><small>Make time for a focused session</small></span><ArrowUpRight size={15} /></button>
+              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("study-plan"); }}><Target size={17} /><span><strong>Study plan</strong><small>A weekly rhythm that works for you</small></span><ArrowUpRight size={15} /></button>
+              <span className="header-menu-label header-menu-label-spaced">ACCESS & SUPPORT</span>
+              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("premium"); }}><LockKeyhole size={17} /><span><strong>Premium access</strong><small>Explore the optional review pack</small></span><ArrowUpRight size={15} /></button>
+              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("sponsored"); }}><HeartHandshake size={17} /><span><strong>Get sponsored</strong><small>Explore study access support</small></span><ArrowUpRight size={15} /></button>
+              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("sponsor"); }}><Coins size={17} /><span><strong>Sponsor students</strong><small>See the student access fund</small></span><ArrowUpRight size={15} /></button>
+              <div className="header-utility-links"><button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("help"); }}><CircleHelp size={14}/>Help & guidance</button><button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("settings"); }}><ShieldCheck size={14}/>Privacy</button></div>
+              <div className="header-wallet-area"><span>OPTIONAL TESTNET WALLET</span>{account ? <button className={"wallet-button " + (walletOnTestnet ? "wallet-ready" : "wallet-wrong-network")} onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("premium"); }} title={walletOnTestnet ? "Wallet connected on Mezo Testnet" : "Wallet is on another network"}><span className="wallet-dot" />{walletLabel}<ChevronRight size={13} /></button> : <button className="wallet-button wallet-optional" onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); void connectWallet(); }} disabled={busy}><Wallet size={15} />Connect wallet<ArrowUpRight size={14}/></button>}</div>
             </div>
           </details>
-          <details className={"topbar-access" + (["premium", "sponsored", "sponsor"].includes(view) ? " topbar-access-current" : "")} onKeyDown={event => {
-            if (event.key === "Escape") {
-              event.currentTarget.open = false;
-              event.currentTarget.querySelector("summary")?.focus();
-            }
-          }}>
-            <summary>Access <ChevronDown size={13} /></summary>
-            <div className="topbar-access-menu" aria-label="Access and sponsorship routes">
-              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("premium"); }}><LockKeyhole size={15} /><span><strong>Premium access</strong><small>Review the package and Testnet checkout status</small></span><ChevronRight size={14} /></button>
-              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("sponsored"); }}><HeartHandshake size={15} /><span><strong>Get sponsored</strong><small>Submit or check a private request</small></span><ChevronRight size={14} /></button>
-              <button onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); go("sponsor"); }}><Coins size={15} /><span><strong>Sponsor students</strong><small>See verified Testnet fund activity</small></span><ChevronRight size={14} /></button>
-            </div>
-          </details>
-          {account ? <button className={"wallet-button " + (walletOnTestnet ? "wallet-ready" : "wallet-wrong-network")} onClick={() => go("premium")} title={walletOnTestnet ? "Wallet connected on Mezo Testnet" : "Wallet is on another network"}><span className="wallet-dot" />{walletLabel}<ChevronDown size={13} /></button> : <button className="wallet-button wallet-optional" onClick={() => void connectWallet()} disabled={busy}><Wallet size={15} />Connect wallet</button>}
+          <button className="header-study-action" onClick={() => go(progress.selectedPathwayId ? "practice" : "pathways")} aria-label="Start studying"><span>Study<span className="nav-now"> now</span></span><ArrowUpRight size={16} /></button>
         </div>
       </header>
+
 
       <div className={`page-wrap route-view${view === "home" ? " gl-home-wrap" : ""}`} key={view}>
         {notice && <div className={`notice notice-${notice.kind}`} role={notice.kind === "error" ? "alert" : "status"} aria-live="polite"><span className="notice-icon">{notice.kind === "success" ? <CheckCircle2 size={18} /> : notice.kind === "error" ? <Info size={18} /> : <Info size={18} />}</span><span>{notice.message}</span><button onClick={() => setNotice(null)} aria-label="Dismiss message"><X size={16} /></button></div>}
