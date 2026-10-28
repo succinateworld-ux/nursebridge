@@ -5,4 +5,7 @@ dist-server/
 .env.*
 !.env.example
 coverage/
+.npm-cache/
+.metrics-check/
 .data/
+

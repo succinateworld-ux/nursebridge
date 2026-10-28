@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { installAnalytics } from "./analytics.js";
 import { createHash, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import express, { type Request, type Response, type NextFunction } from "express";
@@ -315,9 +316,11 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 if (process.env.NODE_ENV === "production") app.use(express.static("dist", { index: "index.html", maxAge: "1h" }));
-void storePromise.then(() => {
+void storePromise.then(async () => {
+  await installAnalytics(app, resolve(dataDirectory, "analytics.json"));
   app.listen(config.port, () => console.info(`NurseBridge listening on http://localhost:${config.port} (${TESTNET.network}); payment routes ${config.payTo || config.sponsorTo ? "configured" : "disabled"}.`));
 }).catch(error => {
   console.error("NurseBridge data store could not be opened", error instanceof Error ? error.name : "unknown error");
   process.exitCode = 1;
 });
+
