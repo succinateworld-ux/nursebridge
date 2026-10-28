@@ -318,3 +318,6 @@ html, body { background: var(--canvas); color: var(--text); }
   .gl-hero { min-height: 670px; }.gl-hero-copy { left: 20px; right: 20px; }.gl-hero h1 { font-size: 55px; }.gl-hero-actions { gap: 14px; }.gl-hero-actions .button { padding-inline: 15px; font-size: 10px; }.gl-secondary-link { font-size: 10px; }.gl-hero-floor { left: 20px; right: 20px; }.gl-hero-facts { gap: 11px; }.gl-section { padding-inline: 20px; }.gl-cockpit>article { padding: 25px; }
 }
 @media (prefers-reduced-motion: reduce) { .gl-arch-block,.gl-snow,.gl-scroll-line { animation: none; }.gl-scene-object,.gl-pathway-row,.gl-theme .button { transition: none; }.gl-theme .button:hover { transform: none; } }
+
+.gl-theme .learning-point{background:#e1efed;color:#5f8a83;border-left-color:#72a59c}
+.gl-theme .learning-point strong{color:#4e8278}
