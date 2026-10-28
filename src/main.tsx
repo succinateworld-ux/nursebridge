@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import "./styles.css";
 import "./product.css";
 import "./experience.css";
+import "./glacier.css";
 
 function Root() {
   const [admin, setAdmin] = useState(window.location.hash === "#admin");
