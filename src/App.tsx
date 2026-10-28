@@ -1,8 +1,9 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatUnits, type Address } from "viem";
 import { track, visit } from "./analytics";
+import BridgeArtwork from "./BridgeArtwork";
 import {
-  Activity, ArrowDownWideNarrow, ArrowRight, BadgeCheck, BookOpen, BookMarked, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft,
+  Activity, ArrowDownWideNarrow, ArrowRight, ArrowUpRight, BadgeCheck, BookOpen, BookMarked, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Clock3, Coins, CreditCard, ExternalLink, FileQuestion, Filter, GraduationCap,
   HeartHandshake, Info, LayoutDashboard, LoaderCircle, LockKeyhole, Menu, MessageCircle, RotateCcw, Search,
   ShieldCheck, Shuffle, Sparkles, Target, Timer, Wallet, X, Zap
@@ -12,7 +13,7 @@ import { addAttempt, calculateScore, completeLesson, completedLessonsFor, loadPr
 import { sortLessons, sortQuestions, type LibrarySort } from "./library";
 import { examPathways, getPathway, type PathwayId } from "./pathways";
 import { PathwaysPage, StudyPlanPage } from "./StudyPlanning";
-import { getStudyPlanSummary, weakestTopics } from "./studyPlan";
+import { getStudyPlanSummary } from "./studyPlan";
 import { countForPracticeMode, examQuestionChoices, practicePoolCount, previousIncorrectOption, resolveExamQuestionCount, selectPracticeQuestions, type PracticeMode } from "./practiceModes";
 import { clearStoredStudySessions, loadStoredExam, loadStoredPractice, storeExamSession, storePracticeSession, type ExamSession, type PracticeSession } from "./studySession";
 
@@ -471,7 +472,8 @@ export default function App() {
     </aside>
     {mobileNavOpen && <button className="mobile-scrim" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} inert={checkout ? true : undefined} />}
 
-    <main className="main-content" aria-label={titleFor[view]} inert={checkout || mobileNavOpen ? true : undefined}>
+    <a className="nb-skip-link" href="#main-content" onClick={event=>{event.preventDefault();document.getElementById("main-content")?.focus();}}>Skip to content</a>
+    <main id="main-content" tabIndex={-1} className="main-content" aria-label={titleFor[view]} inert={checkout || mobileNavOpen ? true : undefined}>
       <header className="topbar">
         <div className="topbar-brandline">
           <button ref={mobileMenuButtonRef} className="mobile-menu-button" onClick={() => setMobileNavOpen(value => !value)} aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"} aria-expanded={mobileNavOpen} aria-controls="mobile-primary-nav"><Menu size={19} /></button>
@@ -484,7 +486,7 @@ export default function App() {
           {navItems.filter(item => item.group === "study" && item.id !== "exam" && item.id !== "study-plan").map(item => <NavLink key={item.id} item={item} active={view === item.id || item.id === "learn" && view === "lesson"} go={go} />)}
         </nav>
         <div className="topbar-actions">
-          <span className="free-access-tag"><CheckCircle2 size={14} />Free study is open</span>
+          <span className="free-access-tag"><span className="nb-pulse-dot"/>Free to begin</span>
           <details className={"topbar-access topbar-tools" + (["exam", "study-plan"].includes(view) ? " topbar-access-current" : "")} onKeyDown={event => {
             if (event.key === "Escape") {
               event.currentTarget.open = false;
@@ -536,6 +538,7 @@ export default function App() {
       </div>
     </main>
 
+    <nav className="nb-mobile-nav" aria-label="Quick navigation" inert={checkout || mobileNavOpen ? true : undefined}>{navItems.filter(item=>["home","learn","practice","progress"].includes(item.id)).map(item=><a key={item.id} href={`#${item.id}`} aria-current={view===item.id || item.id==="learn" && view==="lesson" ? "page" : undefined} onClick={event=>{event.preventDefault();go(item.id);}}>{item.icon}<span>{item.id==="home" ? "Home" : item.id==="learn" ? "Learn" : item.id==="practice" ? "Practice" : "Progress"}</span></a>)}</nav>
     {checkout && <div className="modal-scrim" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) closeCheckout(); }}>
       <section ref={checkoutModal} className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title" aria-describedby="checkout-description">
         <header className="checkout-header"><div className="checkout-brand"><span className="brand-symbol small" aria-hidden="true"><svg viewBox="0 0 32 28"><path d="M3 21V15C3 8.37 8.82 3 16 3s13 5.37 13 12v6M2 21h28M8 20v-6m8 6V9m8 11v-6" /></svg></span><span>{checkout.purpose === "premium" ? "Premium access" : "Student access fund"}<small>Secure Mezo Testnet checkout</small></span></div><button ref={checkoutCloseButton} className="modal-close" onClick={closeCheckout} aria-label="Close checkout"><X size={19} /></button></header>
@@ -563,136 +566,52 @@ function PageHeader({ eyebrow, title, subtitle, action }: { eyebrow: string; tit
 }
 
 function HomePage({ progress, score, selectedPathway, activeExam, activePractice, config, configState, go, startPractice, openLesson, selectSubject, onChoosePathway }: { progress: LearnerProgress; score: ReturnType<typeof calculateScore>; selectedPathway: ReturnType<typeof getPathway>; activeExam: boolean; activePractice: boolean; config: AppConfig | null; configState: string; go: (view: View) => void; startPractice: (subject?: SubjectId) => void; openLesson: (lesson: Lesson) => void; selectSubject: (subject: SubjectId) => void; onChoosePathway: (id: PathwayId) => void }) {
-  const completedIds = completedLessonsFor(progress, selectedPathway?.id);
-  const nextLesson = lessons.find(item => !completedIds.includes(item.id)) ?? lessons[0];
-  const currentAttempts = selectedPathway ? progress.attempts.filter(item => item.pathwayId === selectedPathway.id) : progress.attempts;
-  const lastAttempt = currentAttempts[currentAttempts.length - 1];
+  const completed = completedLessonsFor(progress, selectedPathway?.id);
+  const nextLesson = lessons.find(lesson => !completed.includes(lesson.id)) ?? lessons[0];
   const plan = selectedPathway ? progress.studyPlans[selectedPathway.id] : undefined;
-  const planSummary = selectedPathway ? getStudyPlanSummary(progress.attempts, selectedPathway.id, plan) : null;
-  const weeklyGoal = planSummary?.weeklyQuestionGoal ?? 0;
-  const weakTopic = selectedPathway ? weakestTopics(progress.attempts, selectedPathway.id, 1)[0] : undefined;
-  const recommendedLesson = weakTopic ? lessons.find(lesson => lesson.topic.toLowerCase() === weakTopic.topic.toLowerCase()) : undefined;
-  const continueLesson = recommendedLesson && weakTopic && weakTopic.accuracy < 100 ? recommendedLesson : nextLesson;
-  const activeSessionView: View | null = activeExam ? "exam" : activePractice ? "practice" : null;
-  const continueLabel = activeExam ? "Resume mock practice" : activePractice ? "Resume practice" : completedIds.includes(continueLesson.id) ? "Review lesson" : "Continue studying";
-  const continueAction = () => activeSessionView ? go(activeSessionView) : openLesson(continueLesson);
-  return <>
-    {selectedPathway ? <div className="home-pathway-context"><span className="pathway-context-mark"><GraduationCap size={16} /></span><span><small>CURRENT EXAM PATHWAY</small><strong>{selectedPathway.name}</strong></span><span className="pathway-context-jurisdiction">{selectedPathway.jurisdiction}</span><button className="text-link" onClick={() => go("pathways")}>Change pathway <ChevronRight size={14} /></button></div> : <div className="home-pathway-context home-pathway-unselected"><span className="pathway-context-mark"><GraduationCap size={16} /></span><span><small>START WITH YOUR GOAL</small><strong>Choose an examination pathway</strong></span><span className="pathway-context-jurisdiction">Five routes</span><button className="text-link" onClick={() => go("pathways")}>Choose pathway <ArrowRight size={14} /></button></div>}
-
-    <section className="home-stage" aria-labelledby="home-title">
-      <div className="home-editorial">
-        <span className="hero-kicker"><span className="hero-kicker-dot" /> NURSEBRIDGE BY NURSE SUCCINATE</span>
-        <h1 id="home-title">Study smarter.<br /><em>Practise confidently.</em></h1>
-        <p className="home-lede">Know what to improve next. Begin with original nursing practice material, build a steady routine, and keep learning free without a wallet.</p>
-        <div className="hero-actions">
-          <button className="button button-primary" onClick={continueAction}>{continueLabel} <ArrowRight size={16} /></button>
-          <button className="button button-secondary" onClick={() => startPractice()}>Practise questions <FileQuestion size={15} /></button>
-        </div>
-        <div className="home-quick-links"><button onClick={() => go("exam")}>Take a mock exam <Timer size={14} /></button><button onClick={() => go("study-plan")}>Open study plan <CalendarDays size={14} /></button></div>
-        <div className="home-assurance"><ShieldCheck size={15} /><span>{selectedPathway ? "Your progress is saved separately for this pathway on this device." : "Free study is open. Choose a pathway to begin saving exam-specific progress."}</span></div>
-        <div className="home-library-facts" aria-label="Available learning content">
-          <span><strong>{lessons.length.toString().padStart(2, "0")}</strong> short lessons</span><i />
-          <span><strong>{questions.length.toString().padStart(2, "0")}</strong> original questions</span><i />
-          <span><strong>{subjects.length.toString().padStart(2, "0")}</strong> subject areas</span>
-        </div>
+  const summary = selectedPathway ? getStudyPlanSummary(progress.attempts, selectedPathway.id, plan) : null;
+  const weeklyAnswers = summary?.answersThisWeek ?? progress.attempts.filter(attempt => { const time = Date.parse(attempt.answeredAt); return time >= Date.now() - 7 * 86400000 && time <= Date.now(); }).length;
+  const resume = () => activeExam ? go("exam") : activePractice ? go("practice") : startPractice();
+  const primaryLabel = activeExam ? "Resume mock exam" : activePractice ? "Resume practice" : score.answered ? "Continue practising" : "Start free practice";
+  return <div className="nb-home">
+    <section className="nb-hero" aria-labelledby="home-title">
+      <div className="nb-hero-copy">
+        <span className="nb-eyebrow"><span className="nb-pulse-dot" /> A LITTLE PRACTICE. A BIGGER FUTURE.</span>
+        <h1 id="home-title">Your next<br/>chapter<br/><span>starts here.</span><span className="nb-title-star" aria-hidden="true">✳</span></h1>
+        <p>Build your nursing knowledge. Find your rhythm.<br className="nb-desktop-break"/> Walk into your next exam with more confidence.</p>
+        <div className="nb-hero-actions"><button className="button button-primary" onClick={resume}>{primaryLabel}<ArrowRight size={18}/></button><button className="button button-secondary" onClick={() => go("pathways")}>Find my pathway<ChevronRight size={16}/></button></div>
+        <div className="nb-hero-reassurance"><CheckCircle2 size={14}/> Free to begin <span/> No account needed <span/> Your pace</div>
       </div>
+      <div className="nb-hero-visual">
+        <div className="nb-visual-label"><span className="nb-pulse-dot"/> THE BRIDGE TO WHAT’S NEXT <span>01 / ∞</span></div>
+        <BridgeArtwork/>
+        <div className="nb-art-chip nb-art-chip-top"><span><ShieldCheck size={17}/></span><div><strong>Grounded in learning.</strong><small>Original, source-linked practice</small></div></div>
+        <button className="nb-art-chip nb-art-chip-bottom" onClick={() => go("progress")}><span><Activity size={17}/></span><div><strong>{score.answered ? `${score.answered} questions. Keep growing.` : "Small steps. Real progress."}</strong><small>{score.answered ? `${score.percent}% accuracy in this study context` : "Your learning journey starts with one question"}</small></div><ArrowUpRight size={16}/></button>
+        <span className="nb-art-caption">KNOWLEDGE IS YOUR NEXT SUPERPOWER.</span>
+      </div>
+    </section>
+    <div className="nb-content-strip" aria-label="Available study content"><div><BookOpen size={16}/><strong>{lessons.length}</strong><span>focused lessons</span></div><div><FileQuestion size={16}/><strong>{questions.length}</strong><span>original questions</span></div><div><GraduationCap size={17}/><strong>{examPathways.length}</strong><span>exam pathways</span></div><div><Sparkles size={16}/><span>Built for your next chapter</span><span className="nb-strip-brand">NURSE SUCCINATE ↗</span></div></div>
 
-      <div className="home-insight">
-        <KnowledgeMap score={score} completedIds={completedIds} selectSubject={selectSubject} go={go} />
-        <button className="featured-lesson" onClick={continueAction}>
-          <span className="featured-lesson-top"><span>{activeExam ? "ACTIVE MOCK PRACTICE" : activePractice ? "UNFINISHED PRACTICE SET" : lastAttempt ? "LAST PRACTISED · " + (lastAttempt.correct ? "CORRECT" : "REVISIT") : "YOUR NEXT LESSON"}</span><span>{activeExam ? "RESUME" : activePractice ? "RESUME" : continueLesson.estimatedMinutes + " MIN"}</span></span>
-          <span className="featured-lesson-title">{activeExam ? "Continue your timed session" : activePractice ? "Return to your question set" : continueLesson.title}</span>
-          <span className="featured-lesson-copy">{activeExam || activePractice ? "Your unfinished session is saved locally on this device and will remain in progress until you submit or clear it." : weakTopic && recommendedLesson ? "Your saved answers suggest a review of " + weakTopic.topic + "." : continueLesson.sections[0]?.paragraphs[0]}</span>
-          <span className="featured-lesson-bottom"><span>{activeExam ? "Timer keeps running while you are away" : activePractice ? "Progress saved on this device" : subjectName(continueLesson.subject) + " · " + continueLesson.difficulty}</span><span>{continueLabel} <ArrowRight size={14} /></span></span>
-        </button>
+    <section className="nb-study-space" aria-labelledby="nb-study-title">
+      <div className="nb-section-heading"><div><span className="nb-eyebrow">MAKE TODAY COUNT</span><h2 id="nb-study-title">A little better, every day.</h2></div><button className="nb-pathway-pill" onClick={() => go("pathways")}><GraduationCap size={15}/>{selectedPathway ? pathwayTileLabels[selectedPathway.id] : "Choose your exam"}<ChevronDown size={13}/></button></div>
+      <div className="nb-cockpit">
+        <article className="nb-next-card"><div className="nb-card-label"><span className="nb-icon-square"><Zap size={18}/></span><span>YOUR NEXT MOVE</span><span className="nb-small-pill">FREE</span></div><h3>{activeExam || activePractice ? "Pick up where\nyou left off." : "Five questions.\nOne fresh start."}</h3><p>{activeExam || activePractice ? "Your unfinished session is ready when you are." : "A short practice set to turn a spare moment into a step forward."}</p><button onClick={resume}>{primaryLabel}<span><ArrowUpRight size={18}/></span></button></article>
+        <article className="nb-goal-card"><div className="nb-card-label"><span className="nb-icon-square"><Target size={18}/></span><span>YOUR WEEKLY FOCUS</span></div><div className="nb-week-progress"><strong>{weeklyAnswers}</strong><span>{plan ? `of ${plan.weeklyQuestionGoal} questions` : "questions this week"}</span></div><div className="nb-goal-track" role="img" aria-label={plan ? `${summary?.answersThisWeek ?? 0} of ${plan.weeklyQuestionGoal} weekly questions` : "No weekly goal set"}><span style={{width:`${plan ? Math.min(100, (summary?.answersThisWeek ?? 0) / plan.weeklyQuestionGoal * 100) : 0}%`}}/></div><p>{plan ? "Every submitted answer is a step forward." : "Make room for learning. Set a goal that fits your life."}</p><button className="text-link" onClick={() => go(selectedPathway ? "study-plan" : "pathways")}>{plan ? "View study plan" : "Set my study goal"}<ArrowRight size={15}/></button></article>
+        <article className="nb-progress-card"><div className="nb-card-label"><span className="nb-icon-square"><Activity size={18}/></span><span>YOUR GROWTH</span></div><div className="nb-progress-core"><svg viewBox="0 0 100 100" role="img" aria-label={`${completed.length} of ${lessons.length} lessons complete`}><circle cx="50" cy="50" r="40" className="nb-ring-track"/><circle cx="50" cy="50" r="40" className="nb-ring-value" strokeDasharray="251.33" strokeDashoffset={251.33 * (1 - completed.length / lessons.length)}/><text x="50" y="48" textAnchor="middle">{completed.length}<tspan x="50" dy="17">OF {lessons.length} LESSONS</tspan></text></svg><div><strong>{score.answered ? `${score.percent}%` : "Let’s begin"}</strong><span>{score.answered ? "practice accuracy" : "One step at a time"}</span><small>{score.answered} answers submitted</small></div></div><button className="text-link" onClick={() => go("progress")}>Explore my progress<ArrowRight size={15}/></button></article>
       </div>
     </section>
 
-    <section className="home-exam-routes" aria-labelledby="home-pathways-title">
-      <header className="home-exam-routes-heading">
-        <div><span className="section-overline">FIVE EXAM PATHWAYS</span><h2 id="home-pathways-title">Choose the route you’re working toward.</h2><p>Each tile opens a pathway with its own saved progress and original practice set.</p></div>
-        <button className="text-link" onClick={() => go("pathways")}>Explore pathway details <ArrowRight size={14} /></button>
-      </header>
-      <div className="home-exam-track" role="group" aria-label="Available exam pathways" tabIndex={0}>
-        {examPathways.map((pathway, index) => {
-          const selected = selectedPathway?.id === pathway.id;
-          const practiceCount = questions.filter(question => question.pathwayIds.includes(pathway.id)).length;
-          return <button key={pathway.id} aria-pressed={selected} aria-label={`${pathwayTileLabels[pathway.id]}, ${pathway.jurisdiction}, ${practiceCount} original pathway practice questions${selected ? ", currently selected" : ""}`} className={`home-exam-tile ${selected ? "home-exam-tile-selected" : ""}`} onClick={() => onChoosePathway(pathway.id)}>
-            <span className={`home-exam-tile-mark home-exam-tile-mark-${index}`}>{pathwayTileIcons[pathway.id]}</span><span className="home-exam-tile-index">0{index + 1}</span>
-            <strong>{pathwayTileLabels[pathway.id]}</strong><small>{pathway.name}</small>
-            <span className="home-exam-tile-bottom"><span>{practiceCount} pathway practice items</span><ArrowRight size={14} /></span>
-            {selected && <span className="home-exam-selected"><Check size={11} />SELECTED</span>}
-          </button>;
-        })}
-      </div>
-      <p className="home-exam-note"><Info size={13} />Original practice items are not official exam questions or verified blueprint mappings.</p>
-    </section>
+    <section className="nb-pathways" aria-labelledby="nb-pathways-title"><div className="nb-section-heading"><div><span className="nb-eyebrow">YOUR AMBITION. YOUR DIRECTION.</span><h2 id="nb-pathways-title">Different paths. Same potential.</h2><p>Find your exam route. Build knowledge that moves you forward.</p></div><button className="text-link" onClick={() => go("pathways")}>Explore pathways<ArrowUpRight size={16}/></button></div><div className="nb-pathway-grid">{examPathways.map((pathway,index)=>{ const selected = selectedPathway?.id === pathway.id; const count = questions.filter(q=>q.pathwayIds.includes(pathway.id)).length; return <button key={pathway.id} className={`nb-pathway-card nb-route-${index}${selected ? " nb-route-selected" : ""}`} aria-pressed={selected} onClick={()=>onChoosePathway(pathway.id)}><div className="nb-route-top"><span>{pathwayTileIcons[pathway.id]}</span><small>{selected ? <><Check size={11}/> YOUR PATH</> : `0${index + 1}`}</small></div><h3>{pathwayTileLabels[pathway.id]}</h3><p>{pathway.name}</p><footer><span>{count} pathway questions</span><ArrowUpRight size={16}/></footer></button>; })}</div><p className="nb-source-note"><Info size={13}/> Original practice content. Pathways are not official exam simulations or verified blueprint mappings.</p></section>
 
-    <section className="home-plan-strip" aria-label="Study plan preview">
-      <div className="home-plan-intro"><span className="plan-progress-icon"><Target size={17} /></span><div><span className="section-overline">YOUR WEEKLY OBJECTIVE</span><h2>{selectedPathway ? plan ? planSummary?.answersToday + " of " + planSummary?.dailyQuestionTarget + " questions today" : "Set a question goal that fits your week" : "Choose a pathway to build a study plan"}</h2></div></div>
-      {selectedPathway && plan && planSummary ? <div className="home-week-meter"><div><strong>{planSummary.answersThisWeek}</strong><span>of {weeklyGoal} this week</span></div><div className="plan-meter" role="img" aria-label={`${Math.min(100, Math.round(planSummary.answersThisWeek * 100 / weeklyGoal))}% of weekly question goal completed`}><span style={{ width: `${Math.min(100, Math.round(planSummary.answersThisWeek * 100 / weeklyGoal))}%` }} /></div></div> : <p className="home-plan-note">Only answers you submit count. NurseBridge does not invent study time or streaks.</p>}
-      <button className="text-link" onClick={() => go(selectedPathway ? "study-plan" : "pathways")}>{selectedPathway ? "Adjust plan" : "Choose pathway"} <ArrowRight size={14} /></button>
-    </section>
+    <section className="nb-learn-section" aria-labelledby="nb-learn-title"><div className="nb-section-heading"><div><span className="nb-eyebrow">UNDERSTAND IT. THEN OWN IT.</span><h2 id="nb-learn-title">Knowledge that stays with you.</h2></div><button className="text-link" onClick={()=>go("learn")}>Open the library<ArrowUpRight size={16}/></button></div><div className="nb-learning-grid"><button className="nb-featured-lesson" onClick={()=>openLesson(nextLesson)}><div className="nb-card-label"><BookOpen size={17}/><span>{completed.includes(nextLesson.id) ? "WORTH ANOTHER LOOK" : "YOUR NEXT LESSON"}</span><small>{nextLesson.estimatedMinutes} MIN</small></div><div className="nb-lesson-visual" aria-hidden="true"><div/><div/><div/><span><BookOpen size={38}/></span></div><h3>{nextLesson.title}</h3><p>{nextLesson.learningObjectives[0]}</p><span className="nb-lesson-link">{completed.includes(nextLesson.id) ? "Review lesson" : "Start learning"}<span><ArrowUpRight size={18}/></span></span></button><div className="nb-subject-grid">{subjects.map((subject,index)=><button key={subject.id} onClick={()=>{selectSubject(subject.id);go("learn");}}><span className={`nb-subject-icon nb-subject-${index % 4}`}>{index % 4 === 0 ? <Activity size={19}/> : index % 4 === 1 ? <HeartHandshake size={19}/> : index % 4 === 2 ? <ShieldCheck size={19}/> : <BookOpen size={19}/>}</span><span><strong>{subject.name}</strong><small>{questions.filter(q=>q.subject===subject.id).length} original questions</small></span><ChevronRight size={14}/></button>)}</div></div></section>
 
-    <section className="home-subject-rail" aria-labelledby="subjects-title">
-      <div className="home-section-head"><div><span className="section-overline">THE STUDY LIBRARY</span><h2 id="subjects-title">Build from the fundamentals.</h2></div><button className="text-link" onClick={() => go("learn")}>Browse all learning <ArrowRight size={14} /></button></div>
-      <div className="subject-rail">{subjects.map((subject, index) => {
-        const subjectLessons = lessons.filter(item => item.subject === subject.id);
-        const subjectQuestions = questions.filter(item => item.subject === subject.id);
-        return <button className="subject-rail-item" key={subject.id} onClick={() => { selectSubject(subject.id); go("learn"); }}>
-          <span className="subject-rail-index">0{index + 1}</span><span className="subject-rail-body"><strong>{subject.name}</strong><small>{subject.description}</small><span>{subjectLessons.length} lessons <i /> {subjectQuestions.length} original questions</span></span><ArrowRight size={16} />
-        </button>;
-      })}</div>
-    </section>
+    <section className="nb-how" aria-labelledby="nb-how-title"><div><span className="nb-eyebrow">LESS FRICTION. MORE LEARNING.</span><h2 id="nb-how-title">From “where do I start?”<br/>to “I’ve got this.”</h2></div><ol><li><span>01</span><div><h3>Find your direction.</h3><p>Choose a pathway or try general nursing practice.</p></div></li><li><span>02</span><div><h3>Make a little progress.</h3><p>Read a lesson. Answer a question. Understand the why.</p></div></li><li><span>03</span><div><h3>Come back stronger.</h3><p>Review mistakes and use your progress to guide your next step.</p></div></li></ol></section>
 
-    <section className="access-paths" aria-labelledby="access-title">
-      <div className="access-paths-heading"><span className="section-overline">ACCESS, ON YOUR TERMS</span><h2 id="access-title">Choose how you’d like to continue.</h2><p>Learning stays available whether or not you use a wallet.</p></div>
-      <div className="access-path-list">
-        <article className="access-path"><span className="access-path-number">01</span><div><h3>Study free</h3><p>Lessons, question practice, mock exams, and progress saved on this device.</p></div><button className="text-link" onClick={() => go("learn")}>Start learning <ArrowRight size={14} /></button></article>
-        <article className="access-path"><span className="access-path-number">02</span><div><h3>Get sponsored</h3><p>Send a private request. It stays pending until a real reviewer takes action.</p></div><button className="text-link" onClick={() => go("sponsored")}>How support works <ArrowRight size={14} /></button></article>
-        <article className="access-path"><span className="access-path-number">03</span><div><h3>Self-sponsor premium</h3><p>{configState !== "ready" ? "Checking whether Testnet checkout is available." : config?.premiumAvailable ? "30-day access · " + config.premiumPrice + " MUSD · Mezo Testnet." : "Checkout is unavailable until its Testnet configuration is complete."}</p></div><button className="text-link" onClick={() => go("premium")}>Review the package <ArrowRight size={14} /></button></article>
-      </div>
-      <div className="sponsor-route-link"><span>For schools, nurses, and community sponsors</span><button className="text-link" onClick={() => go("sponsor")}>View the study-access fund <ArrowRight size={14} /></button></div>
-    </section>
-    <p className="clinical-disclaimer"><Info size={14} />{contentDisclaimer}<span>Original practice material · not official examination content.</span></p>
-  </>;
+    <section className="nb-access" aria-labelledby="nb-access-title"><div className="nb-access-intro"><span className="nb-eyebrow"><HeartHandshake size={14}/> LEARNING SHOULD HAVE AN OPEN DOOR.</span><h2 id="nb-access-title">Your future.<br/>Fewer barriers.</h2><p>Core study is free. Explore support and optional premium access when you’re ready.</p><button className="button button-primary" onClick={()=>go("learn")}>Explore free learning<ArrowRight size={17}/></button></div><div className="nb-access-options"><button onClick={()=>go("sponsored")}><span className="nb-icon-square"><HeartHandshake size={19}/></span><div><h3>A little support goes a long way.</h3><p>Explore sponsorship and submit a private request. Requests remain pending in this build.</p></div><ArrowUpRight size={19}/></button><button onClick={()=>go("premium")}><span className="nb-icon-square"><Sparkles size={19}/></span><div><h3>Go a little deeper.</h3><p>{configState === "ready" && config?.premiumAvailable ? `Optional 30-day review pack · ${config.premiumPrice} MUSD on Mezo Testnet.` : "Explore the optional review pack. Testnet checkout is currently unavailable."}</p></div><ArrowUpRight size={19}/></button><button className="nb-sponsor-link" onClick={()=>go("sponsor")}>Help open the door for someone else.<ArrowRight size={16}/></button></div></section>
+    <p className="nb-source-note nb-education-note"><ShieldCheck size={15}/>{contentDisclaimer}</p>
+  </div>;
 }
 
-function KnowledgeMap({ score, completedIds, selectSubject, go }: { score: ReturnType<typeof calculateScore>; completedIds: string[]; selectSubject: (subject: SubjectId) => void; go: (view: View) => void }) {
-  const completed = completedIds.length;
-  return <section className="knowledge-map" aria-labelledby="knowledge-map-title">
-    <header className="knowledge-map-header">
-      <div><span className="section-overline">YOUR STUDY SPACE</span><h2 id="knowledge-map-title">Learning pathways</h2></div>
-      <span className="local-data-tag"><span className="local-data-dot" />SAVED ON THIS DEVICE</span>
-    </header>
-    <div className="knowledge-map-canvas">
-      <svg className="knowledge-map-lines" viewBox="0 0 520 250" preserveAspectRatio="none" aria-hidden="true">
-        <path d="M112 66 C178 66 179 126 250 126 S333 64 407 64" />
-        <path d="M112 186 C180 186 185 126 250 126 S335 186 407 186" />
-        <path d="M112 66 C145 104 145 147 112 186" />
-        <path d="M407 64 C375 103 375 147 407 186" />
-        <circle cx="250" cy="126" r="4" />
-      </svg>
-      <div className="knowledge-map-nodes">
-        {subjects.map((subject, index) => {
-          const total = lessons.filter(item => item.subject === subject.id).length;
-          const done = lessons.filter(item => item.subject === subject.id && completedIds.includes(item.id)).length;
-          const ratio = total ? done / total : 0;
-          const circumference = 75.4;
-          return <button className="map-node" key={subject.id} onClick={() => { selectSubject(subject.id); go("learn"); }} aria-label={subject.name + ": " + done + " of " + total + " lessons complete. Browse this subject."}>
-            <span className="map-node-copy"><small>0{index + 1} / PATHWAY</small><strong>{subject.name}</strong><span>{done} of {total} lessons</span></span>
-            <svg className="map-node-progress" viewBox="0 0 30 30" role="img" aria-label={Math.round(ratio * 100) + " percent complete"}>
-              <circle className="map-progress-track" cx="15" cy="15" r="12" />
-              <circle className="map-progress-value" cx="15" cy="15" r="12" strokeDasharray={circumference} strokeDashoffset={circumference * (1 - ratio)} />
-              <text x="15" y="18" textAnchor="middle">{done}</text>
-            </svg>
-          </button>;
-        })}
-      </div>
-    </div>
-    <footer className="knowledge-map-footer"><span>LESSONS MARKED COMPLETE</span><strong>{completed} <small>/ {lessons.length}</small></strong><span className="knowledge-answer-count">{score.answered ? score.answered + " answers in this view" : "Practice starts when you do"}</span><button onClick={() => go("progress")}>View progress <ArrowRight size={14} /></button></footer>
-  </section>;
-}
 function LibraryPage(props: {
   selectedSubject: SubjectId | "all"; setSelectedSubject: (value: SubjectId | "all") => void; searchText: string; setSearchText: (value: string) => void;
   librarySort: LibrarySort; setLibrarySort: (value: LibrarySort) => void;

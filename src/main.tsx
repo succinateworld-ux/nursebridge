@@ -6,6 +6,7 @@ import AnalyticsChoice from "./AnalyticsChoice";
 import { useEffect, useState } from "react";
 import "./styles.css";
 import "./product.css";
+import "./experience.css";
 
 function Root() {
   const [admin, setAdmin] = useState(window.location.hash === "#admin");
