@@ -14,12 +14,16 @@ import { checkoutIntentId, musdRoute } from "./musd-checkout.js";
 import { loadServerConfig, TESTNET } from "./config.js";
 import { verifyPayment } from "./verify-payment.js";
 import { createJsonStore, type PaymentIntent, type PaymentPurpose } from "./store.js";
+import { createPaymentDatabase } from "./payment-database.js";
 import { premiumReviewPack } from "./premium-content.js";
 import { accessSessionWallet, createAccessSession, createSponsorshipRequest, getActiveEntitlement, issueAccessChallenge, saveVerifiedPayment, validatePaymentIntent } from "./services.js";
 
 const config = loadServerConfig();
 const dataDirectory = resolve(process.env.DATA_DIR ?? ".data");
-const storePromise = createJsonStore(resolve(dataDirectory, "nursebridge.json"));
+const databaseUrl = process.env.PAYMENTS_DATABASE_URL ?? process.env.METRICS_DATABASE_URL;
+const persistence = databaseUrl ? "neon_postgres" : "single_instance_json_file";
+const storePromise = createJsonStore(resolve(dataDirectory, "nursebridge.json")).then(local =>
+  databaseUrl ? createPaymentDatabase(databaseUrl, local.read()) : local);
 const app = express();
 const publicClient = createPublicClient({ transport: http(config.rpcUrl, { timeout: 10_000 }) });
 const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
@@ -68,7 +72,7 @@ app.get("/api/config", (_req, res) => res.setHeader("Cache-Control", "no-store")
   network: TESTNET.network, chainId: TESTNET.chainId, networkName: TESTNET.name, token: TESTNET.musd, decimals: TESTNET.decimals,
   explorer: TESTNET.explorerUrl, premiumAvailable: Boolean(config.payTo), premiumPrice: config.priceUsd, premiumPayTo: config.payTo,
   sponsorAvailable: Boolean(config.sponsorTo), sponsorPrice: config.sponsorPriceUsd, sponsorPayTo: config.sponsorTo,
-  persistence: "single_instance_json_file", authentication: "guest_mode"
+  persistence, authentication: "guest_mode"
 }));
 
 app.post("/api/payment-intents", async (req, res) => {
@@ -303,7 +307,7 @@ app.get("/api/sponsorship/summary", async (_req, res) => {
 app.get("/api/history", async (_req, res) => {
   await reconcilePending();
   const state = (await storePromise).read();
-  res.setHeader("Cache-Control", "no-store").json({ source: "verified_nursebridge_records", persistence: "single_instance_json_file", payments: state.payments.map(({ hash, payTo, amount, verifiedAt, purpose, entitlementExpiresAt }) => ({ hash, payTo, amount, verifiedAt, purpose, entitlementExpiresAt })), pendingCount: state.pending.length });
+  res.setHeader("Cache-Control", "no-store").json({ source: "verified_nursebridge_records", persistence, payments: state.payments.map(({ hash, payTo, amount, verifiedAt, purpose, entitlementExpiresAt }) => ({ hash, payTo, amount, verifiedAt, purpose, entitlementExpiresAt })), pendingCount: state.pending.length });
 });
 
 app.get("/api/access/:hash", async (req, res) => {
