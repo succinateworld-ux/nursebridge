@@ -8,6 +8,9 @@ import { createPublicClient, getAddress, http, isAddress, isHex, type Address, t
 import { HTTPFacilitatorClient, x402ResourceServer, type RouteConfig } from "@x402/core/server";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { paymentMiddleware } from "@x402/express";
+import { createPaywall } from "@x402/paywall";
+import { evmPaywall } from "@x402/paywall/evm";
+import { checkoutIntentId, musdRoute } from "./musd-checkout.js";
 import { loadServerConfig, TESTNET } from "./config.js";
 import { verifyPayment } from "./verify-payment.js";
 import { createJsonStore, type PaymentIntent, type PaymentPurpose } from "./store.js";
@@ -148,63 +151,66 @@ app.use(async (req, res, next) => {
 });
 
 const paidRoutes: Record<string, RouteConfig> = {};
-if (config.payTo) paidRoutes["GET /premium"] = { accepts: [{ scheme: "exact", price: `$${config.priceUsd}`, network: TESTNET.network, payTo: config.payTo, maxTimeoutSeconds: 120 }], description: `NurseBridge 30-day premium study access — $${config.priceUsd} MUSD on Mezo Testnet`, mimeType: "application/json" };
-if (config.sponsorTo) paidRoutes["GET /sponsor"] = { accepts: [{ scheme: "exact", price: `$${config.sponsorPriceUsd}`, network: TESTNET.network, payTo: config.sponsorTo, maxTimeoutSeconds: 120 }], description: `NurseBridge student access fund contribution — $${config.sponsorPriceUsd} MUSD on Mezo Testnet`, mimeType: "application/json" };
+if (config.payTo) paidRoutes["GET /premium"] = musdRoute(config.payTo, config.priceAtomic, "NurseBridge 30-day premium access — MUSD on Mezo Testnet");
+if (config.sponsorTo) paidRoutes["GET /sponsor"] = musdRoute(config.sponsorTo, config.sponsorPriceAtomic, "NurseBridge student access fund — MUSD on Mezo Testnet");
 
-// Track x402 pending receipts durably; pending payments never grant access until RPC verification succeeds.
+// Reject a verified authorization from a different payer before any settlement.
+resourceServer.onAfterVerify(async context => {
+  const id = checkoutIntentId(context);
+  const intent = (await storePromise).read().intents.find(item => item.id === id);
+  if (!intent || !context.result.payer || context.result.payer.toLowerCase() !== intent.payer.toLowerCase()
+    || context.requirements.asset.toLowerCase() !== intent.token.toLowerCase()
+    || context.requirements.network !== intent.network
+    || context.requirements.payTo.toLowerCase() !== intent.payTo.toLowerCase()
+    || context.requirements.amount !== intent.amountAtomic) {
+    return { abort: true, reason: "intent_mismatch", message: "Payment authorization does not match this checkout." };
+  }
+});
+
+// Express x402 settles AFTER the handler returns a successful response.
+// Persist the broadcast hash and independently check its receipt in this awaited
+// lifecycle hook, never by reading PAYMENT-RESPONSE inside the route handler.
+resourceServer.onAfterSettle(async context => {
+  const id = checkoutIntentId(context);
+  const intent = (await storePromise).read().intents.find(item => item.id === id);
+  const result = context.result;
+  if (!intent || !validHash(result.transaction) || result.network !== intent.network
+    || !result.payer || result.payer.toLowerCase() !== intent.payer.toLowerCase()) return;
+  await markPending(intent, result.transaction);
+  await reconcilePending();
+});
+
+// Retain broadcast receipts when the facilitator reports settlement_pending.
 app.use(["/premium", "/sponsor"], (_req, res, next) => {
   res.on("finish", () => {
-    if (res.statusCode !== 402) return;
     const header = res.getHeader("PAYMENT-RESPONSE") ?? res.getHeader("payment-response");
     const intent = res.locals.paymentIntent as PaymentIntent | undefined;
     if (typeof header !== "string" || !intent) return;
     try {
       const reply = JSON.parse(Buffer.from(header, "base64").toString("utf8")) as { errorReason?: string; transaction?: string; network?: string; payer?: string };
-      if (reply.errorReason === "settlement_pending" && reply.network === TESTNET.network && validHash(reply.transaction) && reply.payer && isAddress(reply.payer) && getAddress(reply.payer) === intent.payer) void markPending(intent, reply.transaction);
-    } catch { /* An unreadable facilitator response cannot grant access. */ }
+      if (reply.errorReason === "settlement_pending" && reply.network === intent.network && validHash(reply.transaction)
+        && reply.payer?.toLowerCase() === intent.payer.toLowerCase()) {
+        void markPending(intent, reply.transaction).catch(error => console.error("Could not retain pending payment", error instanceof Error ? error.name : "unknown"));
+      }
+    } catch { /* Malformed settlement metadata cannot grant access. */ }
   });
   next();
 });
 
-if (Object.keys(paidRoutes).length) app.use(paymentMiddleware(paidRoutes, resourceServer, { appName: "NurseBridge", testnet: true }));
+const paywall = createPaywall().withNetwork(evmPaywall).build();
+if (Object.keys(paidRoutes).length) app.use(paymentMiddleware(paidRoutes, resourceServer, { appName: "NurseBridge", testnet: true }, paywall));
 
-async function finishCheckout(_req: Request, res: Response, purpose: PaymentPurpose): Promise<void> {
+function finishCheckout(_req: Request, res: Response, purpose: PaymentPurpose): void {
   const intent = res.locals.paymentIntent as PaymentIntent | undefined;
   if (!intent || intent.purpose !== purpose) { res.status(400).json({ error: "A matching payment intent is required." }); return; }
-  const header = res.getHeader("PAYMENT-RESPONSE") ?? res.getHeader("payment-response");
-  if (typeof header !== "string") { res.status(402).json({ error: "No x402 settlement response was provided. Nothing was unlocked." }); return; }
-  let settlement: { success?: boolean; errorReason?: string; transaction?: string; network?: string; payer?: string };
-  try { settlement = JSON.parse(Buffer.from(header, "base64").toString("utf8")); }
-  catch { res.status(502).json({ error: "The facilitator response could not be read. Access remains locked." }); return; }
-  if (settlement.errorReason === "settlement_pending" && validHash(settlement.transaction) && settlement.network === intent.network && settlement.payer && isAddress(settlement.payer) && getAddress(settlement.payer) === intent.payer) {
-    await markPending(intent, settlement.transaction);
-    res.status(202).json({ status: "pending", error: "Settlement is still confirming. Access remains locked while Mezo Testnet is checked.", transaction: settlement.transaction }); return;
-  }
-  if (!settlement.success || !validHash(settlement.transaction) || settlement.network !== intent.network || !settlement.payer || !isAddress(settlement.payer) || getAddress(settlement.payer) !== intent.payer) {
-    res.status(402).json({ status: "unverified", error: "Settlement details did not match this payment intent. No access was granted." }); return;
-  }
-  const store = await storePromise;
-  const prior = store.read().payments.find(payment => payment.hash.toLowerCase() === settlement.transaction!.toLowerCase());
-  if (prior) {
-    if (prior.intentId === intent.id) { res.json({ ok: true, status: "verified", purpose, transaction: prior.hash, expiresAt: prior.entitlementExpiresAt ?? null, idempotent: true }); return; }
-    res.status(409).json({ error: "This transaction has already been processed and cannot be reused." }); return;
-  }
-  const verification = await verifyPayment({ chain: publicClient, txHash: settlement.transaction, network: settlement.network, payer: intent.payer, expectedPayTo: intent.payTo, expectedAmount: BigInt(intent.amountAtomic) });
-  if (!verification.ok) {
-    const pending = verification.reason.includes("Could not confirm") || verification.reason.includes("not found");
-    if (pending) { await markPending(intent, settlement.transaction); res.status(202).json({ status: "pending", error: "Mezo Testnet has not confirmed the receipt yet. Access remains locked.", transaction: settlement.transaction }); }
-    else res.status(402).json({ status: "unverified", error: "The receipt did not match the expected MUSD payment. No access was granted." });
-    return;
-  }
-  const saved = await saveVerifiedPayment(store, intent.id, { hash: verification.hash, payer: verification.payer, payTo: verification.payTo, amount: verification.amount });
-  if (saved === "expired") { res.status(410).json({ error: "The payment intent expired before the receipt could be confirmed. No access was granted." }); return; }
-  if (saved === "duplicate") { res.status(409).json({ error: "This intent or transaction has already been processed. No additional access was granted." }); return; }
-  const payment = store.read().payments.find(item => item.hash.toLowerCase() === verification.hash.toLowerCase());
-  res.json({ ok: true, status: "verified", purpose, transaction: verification.hash, expiresAt: payment?.entitlementExpiresAt ?? null, idempotent: saved === "same" });
+  // This is an acknowledgement, never an entitlement. The app polls the intent;
+  // only saveVerifiedPayment, after RPC verification, can unlock premium content.
+  res.setHeader("Cache-Control", "no-store").json({ status: "pending", purpose, intentId: intent.id,
+    message: "Check payment status in NurseBridge. Access unlocks only after the MUSD receipt is verified.",
+    statusUrl: `/api/payment-intents/${encodeURIComponent(intent.id)}?wallet=${encodeURIComponent(intent.payer)}` });
 }
-
-app.get("/premium", async (req, res) => finishCheckout(req, res, "premium"));
-app.get("/sponsor", async (req, res) => finishCheckout(req, res, "sponsor"));
+app.get("/premium", (req, res) => finishCheckout(req, res, "premium"));
+app.get("/sponsor", (req, res) => finishCheckout(req, res, "sponsor"));
 
 app.get("/api/payment-intents/:id", async (req, res) => {
   const wallet = req.query.wallet;
