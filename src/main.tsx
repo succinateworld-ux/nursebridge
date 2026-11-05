@@ -3,12 +3,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import AdminMetrics from "./AdminMetrics";
 import AnalyticsChoice from "./AnalyticsChoice";
+import MotionExperience from "./MotionExperience";
 import { useEffect, useState } from "react";
 import "./styles.css";
 import "./product.css";
 import "./experience.css";
 import "./glacier.css";
 import "./navigation.css";
+import "./motion.css";
 
 function Root() {
   const [admin, setAdmin] = useState(window.location.hash === "#admin");
@@ -17,7 +19,7 @@ function Root() {
     window.addEventListener("hashchange", change);
     return () => window.removeEventListener("hashchange", change);
   }, []);
-  return admin ? <AdminMetrics /> : <><App /><AnalyticsChoice /></>;
+  return admin ? <AdminMetrics /> : <><App /><MotionExperience /><AnalyticsChoice /></>;
 }
 createRoot(document.getElementById("root")!).render(<React.StrictMode><Root /></React.StrictMode>);
 

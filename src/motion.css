@@ -1,0 +1,58 @@
+/* Living glacier: depth at the entrance, clarity in the study space. */
+.gl-theme{--ink:#253b4b;--ink-soft:#456074;--muted:#617b8e;--green:#315c6b;--green-deep:#233f4e;--green-bright:#47778a;--line:#c5d4df}
+.gl-theme .topbar{background:#eef5f9c9;border-color:#ffffffd6;box-shadow:0 8px 32px #344e6610,inset 0 1px 0 #fff;backdrop-filter:blur(24px)}
+.gl-theme .desktop-nav .nav-item{color:#4b6578}.gl-theme .desktop-nav .nav-item.active{color:#203e50}
+.gl-theme .topbar .brand-name{font-weight:650;letter-spacing:-1px}.gl-theme .topbar .brand-name small{color:#526e82}
+.gl-theme .header-more-menu small{color:#627f92}.gl-theme .header-utility-links>button{color:#506f85}
+.gl-theme .gl-hero{min-height:calc(100svh - 96px);padding-top:62px;isolation:isolate}
+.nb-living-scene{inset:0!important;pointer-events:none;background:linear-gradient(#bac8d4,#eef4f7)}
+.nb-living-scene canvas{display:block;width:100%;height:100%}
+.gl-theme .gl-hero::after{background:linear-gradient(90deg,#e1eaf2b0 0%,#e1eaf240 35%,transparent 52%),linear-gradient(0deg,#f2f6f8 0%,transparent 18%)}
+.gl-theme .gl-hero h1{font-weight:400;font-size:clamp(70px,6.8vw,110px);letter-spacing:-.075em;line-height:.99;color:#263b4e}
+.gl-hero-intro{animation:nb-arrive 1s cubic-bezier(.16,1,.3,1) both}.gl-hero-actions-block{animation:nb-arrive 1.1s .16s cubic-bezier(.16,1,.3,1) both}
+.gl-theme .gl-hero-copy p{font-size:15px;color:#466276;line-height:1.85}.gl-theme .gl-kicker{color:#4d6a7e}.gl-theme .gl-access-note{color:#57778c}
+.gl-theme .gl-manifesto{color:#3c5a70;max-width:200px;font-size:12px}.gl-theme .gl-manifesto span{color:#5b778a}
+.gl-theme .gl-hero-actions .button{min-height:54px;border-radius:4px;padding-inline:25px;background:#284958;border-color:#284958;box-shadow:0 6px 22px #263f5018}
+.gl-theme .gl-hero-actions .button:hover{background:#416f80;border-color:#416f80;box-shadow:0 12px 28px #263f5028}
+.gl-theme .button svg,.gl-secondary-link svg,.gl-pathway-row>svg,.gl-subject-list>button>svg{transition:transform .3s cubic-bezier(.2,.7,.2,1)}
+.gl-theme .button:hover:not(:disabled) svg,.gl-secondary-link:hover svg{transform:translate(3px,-2px)}
+.nb-motion-control{position:absolute;z-index:4;right:clamp(24px,6vw,104px);bottom:87px;display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f5faff9e;border:1px solid #a6bdcd88;border-radius:30px;color:#3b5c71;font:10px ui-monospace,monospace;cursor:pointer;backdrop-filter:blur(10px)}
+.nb-motion-control:hover{background:#fff;border-color:#64899f}.nb-motion-control:disabled{opacity:.7;cursor:default}
+.nb-reading-progress{position:fixed;top:0;left:0;z-index:70;width:var(--reading-progress,0%);height:2px;background:#3d7188;pointer-events:none;transition:width .12s linear}
+.nb-enter{opacity:0;transform:translateY(26px);transition:opacity .8s var(--enter-delay,0ms) cubic-bezier(.2,.7,.2,1),transform .8s var(--enter-delay,0ms) cubic-bezier(.2,.7,.2,1)}
+.nb-enter.nb-is-visible{opacity:1;transform:translateY(0)}
+.gl-theme .gl-study-space{background:#f5f8fa}.gl-theme .gl-section-head h2{font-weight:400;letter-spacing:-.06em}
+.gl-theme .gl-cockpit>article{border:1px solid #c1d1dd;background:linear-gradient(145deg,#fff,#ecf3f8);border-radius:7px;box-shadow:0 12px 40px #34516808;transition:border-color .3s,box-shadow .3s,transform .5s,opacity .8s}
+.gl-theme .gl-cockpit>article:hover{border-color:#92afc3;box-shadow:0 18px 40px #34516812}
+.gl-theme .gl-pathway-row{position:relative;overflow:hidden;border-color:#bdcfdd;transition:padding .35s,color .3s,background .3s,opacity .7s,transform .7s}
+.gl-theme .gl-pathway-row:hover{background:#dfeef5}.gl-theme .gl-pathway-row:hover>svg{transform:translate(4px,-4px)}
+.gl-theme .gl-route-name strong{font-weight:450;letter-spacing:-.04em}.gl-theme .gl-route-name small,.gl-theme .gl-route-count{color:#5d7d92}
+.gl-theme .gl-featured-lesson{border-radius:7px;overflow:hidden;background:linear-gradient(140deg,#e9f2f7,#d7e7f1);border-color:#bbd0df}
+.gl-theme .gl-lesson-object>span{animation:nb-orbit-float 7s ease-in-out infinite alternate}.gl-theme .gl-lesson-object>span:nth-child(2){animation-delay:-2.5s}.gl-theme .gl-lesson-object>span:nth-child(3){animation-delay:-4.5s}
+.gl-theme .gl-subject-list>button:hover>svg{transform:translate(3px,-3px)}
+.gl-theme .gl-open-orbit{animation:nb-orbit-turn 90s linear infinite}
+.gl-theme :is(.page-heading p,.practice-note,.gl-source-note,.source-note,.lesson-disclaimer){color:#547187}
+.gl-theme :is(.question-card,.exam-question-card,.lesson-article){background:#fbfdfe;border-color:#bfd2df;box-shadow:0 14px 45px #304f6510}
+.gl-theme :is(.question-card h1,.exam-question-card h1){color:#294659;letter-spacing:-.025em}
+.gl-theme .answer-option{color:#3e6076;border-color:#c0d5e2;transition:background .18s,border-color .18s,box-shadow .18s}
+.gl-theme .answer-option:hover:not(:has(input:disabled)){background:#eaf3f8;border-color:#789fb7}
+.gl-theme .answer-option.selected{background:#e1eef6;border-color:#547e98;box-shadow:inset 3px 0 #547e98}
+.gl-theme .answer-option.answer-correct{background:#e5f1ed;border-color:#6e9c89}.gl-theme .answer-option.answer-incorrect{background:#f8eeeb;border-color:#b48279}
+.gl-theme .question-source-meta,.gl-theme .practice-meta{color:#597a90}
+.gl-theme .learning-point{color:#3d6a63;background:#e0eeea}.gl-theme .learning-point strong{color:#325e55}
+.analytics-choice{background:#edf4f8;color:#496a80;border-color:#bdcfdd}.analytics-choice button{color:#3e657e}
+@keyframes nb-arrive{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes nb-orbit-float{from{translate:0 -6px}to{translate:0 8px}}
+@keyframes nb-orbit-turn{to{rotate:360deg}}
+html[data-motion="off"] .gl-theme :is(.gl-lesson-object>span,.gl-open-orbit,.gl-scroll-line){animation-play-state:paused}
+@media(min-width:1800px){.gl-theme .gl-hero{min-height:900px}.gl-theme .gl-hero h1{font-size:128px}}
+@media(max-width:1100px){.gl-theme .gl-hero{min-height:740px}.gl-theme .gl-hero h1{font-size:80px}}
+@media(max-width:760px){
+ .gl-theme .gl-hero{min-height:730px;height:calc(100svh - 85px);padding:0}.gl-theme .gl-hero h1{font-size:clamp(57px,13.5vw,82px)}
+ .gl-theme .gl-hero-copy{inset:35px 24px 105px}.gl-theme .gl-hero-actions-block{margin-top:auto}
+ .gl-theme .gl-hero-copy p{font-size:13px}.gl-theme .gl-hero::after{background:linear-gradient(0deg,#f2f6f8 0%,#f2f6f8ed 23%,transparent 42%),linear-gradient(#d5e0e96b,transparent 26%)}
+ .gl-theme .gl-hero-actions .button{min-height:49px;padding-inline:18px}.nb-motion-control{right:22px;bottom:267px;padding:8px 10px;font-size:8px}
+ .gl-theme .gl-hero-facts>span{font-size:7px;color:#4f6e84}.gl-theme .gl-scroll-cue{font-size:8px}.gl-theme .gl-section-head h2{font-size:43px}
+ .gl-theme .topbar .brand-name{font-size:19px}.gl-theme .gl-route-name small{font-size:11px}.gl-theme .gl-source-note{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.nb-enter{opacity:1;transform:none;transition:none}.gl-hero-intro,.gl-hero-actions-block,.gl-theme .gl-lesson-object>span,.gl-theme .gl-open-orbit{animation:none}.gl-theme .button svg,.gl-secondary-link svg,.gl-pathway-row>svg{transition:none}.gl-theme .button:hover:not(:disabled) svg,.gl-secondary-link:hover svg,.gl-pathway-row:hover>svg{transform:none}}

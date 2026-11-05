@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatUnits, type Address } from "viem";
 import { track, visit } from "./analytics";
-import GlacierScene from "./GlacierScene";
+import GlacierScene from "./LivingGlacier";
 import {
   Activity, ArrowDownWideNarrow, ArrowRight, ArrowUpRight, BadgeCheck, BookOpen, BookMarked, Bookmark, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft,
   ChevronRight, CircleHelp, Clock3, Coins, CreditCard, ExternalLink, FileQuestion, Filter, GraduationCap,
