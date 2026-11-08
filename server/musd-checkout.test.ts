@@ -30,6 +30,7 @@ describe("MUSD x402 checkout lifecycle", () => {
       recorded.push(context.result.transaction);
     });
     const app = express();
+    app.set("trust proxy", 1);
     app.use(paymentMiddleware({ "GET /premium": musdRoute(payTo, 1000000000000000n, "Premium") }, resource,
       { appName: "NurseBridge", testnet: true }, createPaywall().withNetwork(evmPaywall).build()));
     app.get("/premium", (_req, res) => {
@@ -49,6 +50,10 @@ describe("MUSD x402 checkout lifecycle", () => {
     expect(accepted.asset).toBe(TESTNET.musd);
     expect(accepted.amount).toBe("1000000000000000");
     expect(accepted.extra).toMatchObject({ name: "Mezo USD", version: "1", assetTransferMethod: "permit2" });
+    expect(required.extensions.eip2612GasSponsoring.info.version).toBe("1");
+    const proxied = await fetch(url, { headers: { "X-Forwarded-Proto": "https" } });
+    const proxyRequired = JSON.parse(Buffer.from(proxied.headers.get("payment-required")!, "base64").toString());
+    expect(proxyRequired.resource.url).toBe(url.replace("http:", "https:"));
     expect(settle).not.toHaveBeenCalled();
     const html = await fetch(url, { headers: { Accept: "text/html", "User-Agent": "Mozilla/5.0" } });
     expect(html.status).toBe(402);

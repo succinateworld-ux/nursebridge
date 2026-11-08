@@ -1,6 +1,7 @@
 import type { RouteConfig, SettleResultContext, VerifyResultContext, HTTPTransportContext } from "@x402/core/server";
 import type { Address } from "viem";
 import { TESTNET } from "./config.js";
+import { declareEip2612GasSponsoringExtension } from "@x402/extensions";
 
 // Pin both the token and signing domain. MUSD uses Permit2 with EIP-2612,
 // not transferWithAuthorization (EIP-3009).
@@ -9,7 +10,8 @@ export function musdRoute(payTo: Address, amount: bigint, description: string): 
     accepts: [{ scheme: "exact", network: TESTNET.network, payTo, maxTimeoutSeconds: 120,
       price: { asset: TESTNET.musd, amount: amount.toString(),
         extra: { assetTransferMethod: "permit2", name: "Mezo USD", version: "1" } } }],
-    description, mimeType: "application/json"
+    description, mimeType: "application/json",
+    extensions: { ...declareEip2612GasSponsoringExtension() }
   };
 }
 
