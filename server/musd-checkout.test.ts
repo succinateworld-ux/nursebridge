@@ -4,9 +4,8 @@ import type { Server } from "node:http";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { createPaywall } from "@x402/paywall";
-import { evmPaywall } from "@x402/paywall/evm";
 import type { FacilitatorClient } from "@x402/core/server";
-import { musdRoute, checkoutIntentId } from "./musd-checkout.js";
+import { musdRoute, checkoutIntentId, musdPaywall } from "./musd-checkout.js";
 import { TESTNET } from "./config.js";
 
 const payer = "0x1111111111111111111111111111111111111111";
@@ -32,7 +31,7 @@ describe("MUSD x402 checkout lifecycle", () => {
     const app = express();
     app.set("trust proxy", 1);
     app.use(paymentMiddleware({ "GET /premium": musdRoute(payTo, 1000000000000000n, "Premium") }, resource,
-      { appName: "NurseBridge", testnet: true }, createPaywall().withNetwork(evmPaywall).build()));
+      { appName: "NurseBridge", testnet: true }, createPaywall().withNetwork(musdPaywall).build()));
     app.get("/premium", (_req, res) => {
       expect(res.getHeader("PAYMENT-RESPONSE")).toBeUndefined();
       expect(settle).not.toHaveBeenCalled();
@@ -58,6 +57,7 @@ describe("MUSD x402 checkout lifecycle", () => {
     const html = await fetch(url, { headers: { Accept: "text/html", "User-Agent": "Mozilla/5.0" } });
     expect(html.status).toBe(402);
     expect(html.headers.get("content-type")).toContain("text/html");
+    expect(await html.text()).toContain("readContract:t=>e.readContract(t),signTypedData:");
     const signature = Buffer.from(JSON.stringify({ x402Version: 2, resource: required.resource,
       accepted, payload: {} })).toString("base64");
     const paid = await fetch(url, { headers: { "PAYMENT-SIGNATURE": signature } });

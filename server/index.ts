@@ -9,8 +9,7 @@ import { HTTPFacilitatorClient, x402ResourceServer, type RouteConfig } from "@x4
 import { ExactEvmScheme } from "@x402/evm/exact/server";
 import { paymentMiddleware } from "@x402/express";
 import { createPaywall } from "@x402/paywall";
-import { evmPaywall } from "@x402/paywall/evm";
-import { checkoutIntentId, musdRoute } from "./musd-checkout.js";
+import { checkoutIntentId, musdRoute, musdPaywall } from "./musd-checkout.js";
 import { loadServerConfig, TESTNET } from "./config.js";
 import { verifyPayment } from "./verify-payment.js";
 import { createJsonStore, type PaymentIntent, type PaymentPurpose } from "./store.js";
@@ -204,7 +203,7 @@ app.use(["/premium", "/sponsor"], (_req, res, next) => {
   next();
 });
 
-const paywall = createPaywall().withNetwork(evmPaywall).build();
+const paywall = createPaywall().withNetwork(musdPaywall).build();
 if (Object.keys(paidRoutes).length) app.use(paymentMiddleware(paidRoutes, resourceServer, { appName: "NurseBridge", testnet: true }, paywall));
 
 function finishCheckout(_req: Request, res: Response, purpose: PaymentPurpose): void {
