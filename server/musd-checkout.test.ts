@@ -59,7 +59,11 @@ describe("MUSD x402 checkout lifecycle", () => {
     expect(html.headers.get("content-type")).toContain("text/html");
     expect(await html.text()).toContain("readContract:t=>e.readContract(t),signTypedData:");
     const signature = Buffer.from(JSON.stringify({ x402Version: 2, resource: required.resource,
-      accepted, payload: {} })).toString("base64");
+      accepted, payload: {}, extensions: { eip2612GasSponsoring: {
+        info: { version: "1", from: payer, asset: TESTNET.musd,
+          spender: "0x000000000022D473030F116dDEE9F6B43aC78BA3", amount: accepted.amount,
+          nonce: "0", deadline: "9999999999", signature: `0x${"a".repeat(130)}` }
+      } } })).toString("base64");
     const paid = await fetch(url, { headers: { "PAYMENT-SIGNATURE": signature } });
     expect(paid.status).toBe(200);
     expect(await paid.json()).toEqual({ status: "pending" });

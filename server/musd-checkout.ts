@@ -20,12 +20,16 @@ export const musdPaywall: typeof evmPaywall = {
 // Pin both the token and signing domain. MUSD uses Permit2 with EIP-2612,
 // not transferWithAuthorization (EIP-3009).
 export function musdRoute(payTo: Address, amount: bigint, description: string): RouteConfig {
+  const permit = declareEip2612GasSponsoringExtension().eip2612GasSponsoring;
   return {
     accepts: [{ scheme: "exact", network: TESTNET.network, payTo, maxTimeoutSeconds: 120,
       price: { asset: TESTNET.musd, amount: amount.toString(),
         extra: { assetTransferMethod: "permit2", name: "Mezo USD", version: "1" } } }],
     description, mimeType: "application/json",
-    extensions: { ...declareEip2612GasSponsoringExtension() }
+    // The client replaces extension info with signed permit fields. Advertise
+    // only the invariant version: echo validation requires every advertised
+    // info field, while the helper's descriptive sentence is not echoed.
+    extensions: { eip2612GasSponsoring: { ...permit, info: { version: "1" } } }
   };
 }
 
