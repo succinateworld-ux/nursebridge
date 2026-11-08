@@ -25,6 +25,9 @@ const persistence = databaseUrl ? "neon_postgres" : "single_instance_json_file";
 const storePromise = createJsonStore(resolve(dataDirectory, "nursebridge.json")).then(local =>
   databaseUrl ? createPaymentDatabase(databaseUrl, local.read()) : local);
 const app = express();
+// Render terminates TLS at its reverse proxy. x402 builds its payment retry
+// URL from req.protocol, so honor that proxy's HTTPS header on Render only.
+if (process.env.RENDER === "true") app.set("trust proxy", 1);
 const publicClient = createPublicClient({ transport: http(config.rpcUrl, { timeout: 10_000 }) });
 const facilitator = new HTTPFacilitatorClient({ url: config.facilitatorUrl });
 const resourceServer = new x402ResourceServer(facilitator).register(TESTNET.network, new ExactEvmScheme());
