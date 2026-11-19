@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createMetricsHandler } from "../server/nursequest-metrics-handler.mjs";
 import { installAnalytics } from "./analytics.js";
 import { createHash, randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -58,6 +59,8 @@ function rateLimit(max: number, windowMs: number) {
     next();
   };
 }
+// NurseQuest has its own CORS, rate limits and isolated database tables.
+app.use("/api/nursequest", createMetricsHandler());
 app.use("/api", rateLimit(90, 60_000));
 app.use("/premium", rateLimit(12, 60_000));
 app.use("/sponsor", rateLimit(12, 60_000));
